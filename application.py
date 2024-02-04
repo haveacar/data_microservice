@@ -1,4 +1,6 @@
 from controls import get_data_from_redis, DataProcess, data
+import schedule
+import time
 
 def run():
     # set up data processing
@@ -13,5 +15,10 @@ def run():
     data_process.count_diagram()
 
 
+# Schedule the run function to be called every 10 minutes
+schedule.every(10).minutes.do(run)
+
 if __name__ == '__main__':
-    run()
+    while True:
+        schedule.run_pending()
+        time.sleep(1)

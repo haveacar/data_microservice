@@ -1,14 +1,22 @@
+import json
+import os
 import redis
 
+# get settings
+path = os.path.join(os.path.dirname(__file__), 'settings.json')
+with open(path) as f:
+    data = json.load(f)
+
+
 class RedisClient:
-    def __init__(self, host, port):
+    def __init__(self, host, port, password):
         """Initializes the RedisClient instance by setting up a connection pool to Redis."""
 
         # Initialize Redis connection pool
         self.pool = redis.ConnectionPool(
             host=host,
             port=port,
-            password=secret_manager_keys.get('REDIS_CLOUD_PASSWORD'),
+            password=password,
             decode_responses=True
         )
 
@@ -46,3 +54,17 @@ class RedisClient:
         except Exception as err:
             print(f'Error get data from redis {err}')
             return None
+
+
+# initialize redis client
+redis_client = RedisClient(data.get('redis_endpoint'), data.get('redis_port'), data.get('redis_password'))
+
+
+
+def get_data_from_redis()->dict:
+    """Process dara from redis cloud"""
+    detected_objects = ('car', 'motorbike', 'bus', 'truck', 'person', 'dog', 'bicycle', 'cat')
+
+    data = {key:redis_client.get_data(key) for key in detected_objects}
+
+    return data

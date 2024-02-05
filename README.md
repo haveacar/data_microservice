@@ -52,7 +52,7 @@ docker build -t object-detection-data-processor .
 Run the container:
 
 ```bash
-docker run -d object-detection-data-processor
+docker run -d -p 80:80 -p 18975:18975 object-detection-data-processor
 ```
 
 ## Contributing

@@ -10,10 +10,17 @@ from botocore.exceptions import NoCredentialsError
 matplotlib.use('Agg')  # Use the Agg backend
 import matplotlib.pyplot as plt
 
-# get settings
-path = os.path.join(os.path.dirname(__file__), 'settings.json')
-with open(path) as f:
-    data = json.load(f)
+def upload_configuration(config_file: str = 'settings.json') -> dict:
+    """
+    Loads configuration settings from a specified JSON file.
+    :param config_file: The name of the configuration file
+    :return: A dictionary containing the configuration settings.
+    """
+    path = os.path.join(os.path.dirname(__file__), config_file)
+    with open(path) as f:
+        data = json.load(f)
+
+    return data
 
 
 def get_data_from_redis(objects) -> dict:
@@ -22,14 +29,14 @@ def get_data_from_redis(objects) -> dict:
 
 
 class RedisClient:
-    def __init__(self, host, port, password):
+    def __init__(self):
         """Initializes the RedisClient instance by setting up a connection pool to Redis."""
 
         # Initialize Redis connection pool
-        self.pool = redis.ConnectionPool(
-            host=host,
-            port=port,
-            password=password,
+        self.r = redis.Redis(
+            host=configuration.get('redis_endpoint'),
+            port=configuration.get('redis_port'),
+            password=configuration.get('redis_password'),
             decode_responses=True
         )
 
@@ -39,17 +46,17 @@ class RedisClient:
         test_value = "hello_redis"
         try:
             # Use the connection pool to get a Redis connection
-            with redis.Redis(connection_pool=self.pool) as r:
-                # Set a value in Redis
-                r.set(test_key, test_value)
-                # Retrieve the value from Redis
-                retrieved_value = r.get(test_key)
 
-                # Check if the set and get operations were successful
-                if retrieved_value == test_value:
-                    print("Redis connection test successful: Value set and retrieved correctly.")
-                else:
-                    print("Redis connection test failed: Retrieved value does not match the set value.")
+            # Set a value in Redis
+            self.r.set(test_key, test_value)
+            # Retrieve the value from Redis
+            retrieved_value = self.r.get(test_key)
+
+            # Check if the set and get operations were successful
+            if retrieved_value == test_value:
+                print("Redis connection test successful: Value set and retrieved correctly.")
+            else:
+                print("Redis connection test failed: Retrieved value does not match the set value.")
         except redis.RedisError as e:
             print(f"Redis connection test failed with an error: {e}")
 
@@ -57,11 +64,11 @@ class RedisClient:
         """Get data from redis cloud"""
         cache_key = f'detection_object:{object}'
         try:
-            with redis.Redis(connection_pool=self.pool) as r:
-                cached_data = r.get(cache_key)
-                if cached_data:
-                    return eval(cached_data).get('count')
-                return 1
+
+            cached_data = self.r.get(cache_key)
+            if cached_data:
+                return eval(cached_data).get('count')
+            return 1
 
         except Exception as err:
             print(f'Error get data from redis {err}')
@@ -102,7 +109,7 @@ class DataProcess:
             plt.close()
             # Now upload the file to S3
             try:
-                self.s3.upload_file(tmpfile.name, data.get('bucket_name'), "diagram0.png")
+                self.s3.upload_file(tmpfile.name, 'daniel-govnir-public', "diagram0.png")
 
             except NoCredentialsError as err:
                 print(f'Upload Error: {err}')
@@ -127,7 +134,7 @@ class DataProcess:
             plt.close()  # Release memory
             # Upload to S3
             try:
-                self.s3.upload_file(tmpfile.name, data.get('bucket_name'), "diagram1.png")
+                self.s3.upload_file(tmpfile.name, 'daniel-govnir-public', "diagram1.png")
 
             except NoCredentialsError as err:
                 print(f'Upload Error: {err}')
@@ -135,6 +142,8 @@ class DataProcess:
             else:
                 print('Saved to s3')
 
+# upload configuration
+configuration = upload_configuration()
 
 # initialize redis client
-redis_client = RedisClient(data.get('redis_endpoint'), data.get('redis_port'), data.get('redis_password'))
+redis_client = RedisClient()

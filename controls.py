@@ -24,13 +24,20 @@ def upload_configuration(config_file: str = 'settings.json') -> dict:
 
 
 def get_data_from_redis(objects) -> dict:
-    """Process dara from redis cloud"""
-    return {key: redis_client.get_data(key) for key in objects}
+    """
+     Retrieve and process data from Redis for the specified objects.
+
+    :param objects: A sequence of object keys to retrieve data for.
+    :return: A dictionary with object keys and their associated data.
+
+    """
 
 
 class RedisClient:
     def __init__(self):
-        """Initializes the RedisClient instance by setting up a connection pool to Redis."""
+        """
+        Initialize the Redis client with connection settings from configuration.
+        """
 
         # Initialize Redis connection pool
         self.r = redis.Redis(
@@ -63,8 +70,8 @@ class RedisClient:
     def get_data(self, object: str) -> int:
         """Get data from redis cloud"""
         cache_key = f'detection_object:{object}'
-        try:
 
+        try:
             cached_data = self.r.get(cache_key)
             if cached_data:
                 return eval(cached_data).get('count')
@@ -76,7 +83,21 @@ class RedisClient:
 
 
 class DataProcess:
+    """
+    Processes data for creating and uploading emission and count diagrams to AWS S3.
+    """
+
     def __init__(self, data: dict, emission_values: tuple, access_key:str, secret_key:str, region ='eu-central-1'):
+        """
+        Initialize DataProcess with data, emission values, and AWS credentials.
+
+        :param data: Data to process.
+        :param emission_values: Emission values associated with each object type.
+        :param access_key: AWS access key.
+        :param secret_key: AWS secret access key.
+        :param region: AWS region.
+        """
+
         # generate data
         self.data = [{'object_type': object_type, 'count': count} for object_type, count in data.items()]
         # create data frame
@@ -89,10 +110,14 @@ class DataProcess:
         # initialize  aws client
         self.session = boto3.Session(aws_access_key_id=access_key,
                                      aws_secret_access_key=secret_key,
-                                     region_name=region)
+                                     region_name=region
+                                     )
         self.s3 = self.session.client('s3')
 
     def emission_diagram(self):
+        """
+        Create and upload an emission diagram to AWS S3.
+        """
         # sort dataframe
         df_sorted = self.df.sort_values(by='count_emission', ascending=False)
         # Plotting
@@ -102,11 +127,13 @@ class DataProcess:
         plt.ylabel('Total Emission')
         plt.title('Total Emission by Object Type')
         plt.xticks(rotation=45)  # Rotate labels to make them readable
+
         # Save the plot to a file instead of showing it
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
             plt.savefig(tmpfile.name)
             # Make sure to close plt to release memory
             plt.close()
+
             # Now upload the file to S3
             try:
                 self.s3.upload_file(tmpfile.name, 'daniel-govnir-public', "diagram0.png")
@@ -118,6 +145,10 @@ class DataProcess:
 
 
     def count_diagram(self):
+        """
+        Create and upload an emission diagram to AWS S3.
+        """
+
         # sort dataframe
         df_sorted = self.df.sort_values(by='count', ascending=False)
         # Plotting
@@ -127,8 +158,8 @@ class DataProcess:
         plt.ylabel('Total count')
         plt.title('Total Detected Objects')
         plt.xticks(rotation=45)  # Rotate labels to make them readable
-        # Save the plot to a file instead of showing it
 
+        # Save the plot to a file instead of showing it
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
             plt.savefig(tmpfile.name)
             plt.close()  # Release memory
@@ -138,7 +169,6 @@ class DataProcess:
 
             except NoCredentialsError as err:
                 print(f'Upload Error: {err}')
-
             else:
                 print('Saved to s3')
 
